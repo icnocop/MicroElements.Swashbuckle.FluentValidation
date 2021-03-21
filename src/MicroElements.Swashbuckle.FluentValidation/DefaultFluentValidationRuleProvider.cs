@@ -167,7 +167,7 @@ namespace MicroElements.Swashbuckle.FluentValidation
                     {
                         schemaProperty.SetNewMin(p => p.Minimum, betweenValidator.From.NumericToDecimal(), _options.Value.SetNotNullableIfMinLengthGreaterThenZero);
 
-                        if (betweenValidator is ExclusiveBetweenValidator)
+                        if (betweenValidator.Name == "ExclusiveBetweenValidator")
                         {
                             schemaProperty.ExclusiveMinimum = true;
                         }
@@ -177,7 +177,7 @@ namespace MicroElements.Swashbuckle.FluentValidation
                     {
                         schemaProperty.SetNewMax(p => p.Maximum, betweenValidator.To.NumericToDecimal());
 
-                        if (betweenValidator is ExclusiveBetweenValidator)
+                        if (betweenValidator.Name == "ExclusiveBetweenValidator")
                         {
                             schemaProperty.ExclusiveMaximum = true;
                         }

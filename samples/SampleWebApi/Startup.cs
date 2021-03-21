@@ -37,7 +37,7 @@ namespace SampleWebApi
                 {
                     c.RegisterValidatorsFromAssemblyContaining<Startup>();
                     // Optionally set validator factory if you have problems with scope resolve inside validators.
-                    c.ValidatorFactoryType = typeof(HttpContextServiceProviderValidatorFactory);
+                    //c.ValidatorFactoryType = typeof(HttpContextServiceProviderValidatorFactory);
                 })
                 .AddJsonOptions(options =>
                 {
@@ -53,11 +53,15 @@ namespace SampleWebApi
                 ;
 
             // Register all validators as IValidator?
-            var serviceDescriptors = services.Where(descriptor => descriptor.ServiceType.GetInterfaces().Contains(typeof(IValidator))).ToList();
-            serviceDescriptors.ForEach(descriptor => services.Add(ServiceDescriptor.Transient(typeof(IValidator), descriptor.ImplementationType)));
+            //var serviceDescriptors = services.Where(descriptor => descriptor.ServiceType.GetInterfaces().Contains(typeof(IValidator))).ToList();
+            //serviceDescriptors.ForEach(descriptor => services.Add(ServiceDescriptor.Scoped(typeof(IValidator), descriptor.ImplementationType)));
 
             // One more way to set custom factory.
             //services = services.Replace(ServiceDescriptor.Scoped<IValidatorFactory, ScopedServiceProviderValidatorFactory>());
+
+            // Optional schema generation configuration.
+            services.Configure<FluentValidationSwaggerGenOptions>(options =>
+                options.SetNotNullableIfMinLengthGreaterThenZero = true);
 
             //IOptions<SwaggerGeneratorOptions>
             services.AddSwaggerGen(c =>
@@ -66,10 +70,6 @@ namespace SampleWebApi
                 // Adds fluent validation rules to swagger
                 c.AddFluentValidationRules();
             });
-
-            // Optional schema generation configuration.
-            services.Configure<FluentValidationSwaggerGenOptions>(options =>
-                options.SetNotNullableIfMinLengthGreaterThenZero = true);
 
             // Adds logging
             services.AddLogging(builder => builder.AddConsole().AddFilter(level => true));

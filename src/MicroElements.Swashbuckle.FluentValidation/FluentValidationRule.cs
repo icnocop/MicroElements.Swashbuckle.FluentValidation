@@ -4,6 +4,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using FluentValidation;
+using FluentValidation.Internal;
 using FluentValidation.Validators;
 
 namespace MicroElements.Swashbuckle.FluentValidation
@@ -21,7 +23,7 @@ namespace MicroElements.Swashbuckle.FluentValidation
         /// <summary>
         /// Gets predicates that checks validator is matches rule.
         /// </summary>
-        public IReadOnlyCollection<Func<IPropertyValidator, bool>> Matches { get; }
+        public IReadOnlyCollection<Func<IRuleComponent, bool>> Matches { get; }
 
         /// <summary>
         /// Gets action that modifies swagger schema.
@@ -34,10 +36,10 @@ namespace MicroElements.Swashbuckle.FluentValidation
         /// <param name="name">Rule name.</param>
         /// <param name="matches">Validator predicates.</param>
         /// <param name="apply">Apply rule to schema action.</param>
-        public FluentValidationRule(string name, IReadOnlyCollection<Func<IPropertyValidator, bool>>? matches = null, Action<RuleContext>? apply = null)
+        public FluentValidationRule(string name, IReadOnlyCollection<Func<IRuleComponent, bool>>? matches = null, Action<RuleContext>? apply = null)
         {
             Name = name;
-            Matches = matches ?? Array.Empty<Func<IPropertyValidator, bool>>();
+            Matches = matches ?? Array.Empty<Func<IRuleComponent, bool>>();
             Apply = apply ?? (context => { });
         }
 
@@ -46,11 +48,11 @@ namespace MicroElements.Swashbuckle.FluentValidation
         /// </summary>
         /// <param name="validator">Validator.</param>
         /// <returns>True if validator matches rule.</returns>
-        public bool IsMatches(IPropertyValidator validator)
+        public bool IsMatches(IRuleComponent ruleComponent)
         {
             foreach (var match in Matches)
             {
-                if (!match(validator))
+                if (!match(ruleComponent))
                     return false;
             }
 
@@ -64,7 +66,7 @@ namespace MicroElements.Swashbuckle.FluentValidation
         /// <returns>New rule instance.</returns>
         public FluentValidationRule MatchesValidatorWithNoCondition()
         {
-            var matches = Matches.Prepend(validator => validator.HasNoCondition()).ToArray();
+            var matches = Matches.Prepend(ruleComponent => ruleComponent.HasNoCondition()).ToArray();
             return new FluentValidationRule(Name, matches, Apply);
         }
 
@@ -75,7 +77,7 @@ namespace MicroElements.Swashbuckle.FluentValidation
         /// <returns>New rule instance.</returns>
         public FluentValidationRule MatchesValidator(Func<IPropertyValidator, bool> validatorSelector)
         {
-            var matches = Matches.Append(validatorSelector).ToArray();
+            var matches = Matches.Append(component => validatorSelector(component.Validator)).ToArray();
             return new FluentValidationRule(Name, matches, Apply);
         }
 

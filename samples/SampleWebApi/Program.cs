@@ -12,6 +12,13 @@ namespace SampleWebApi
 
         public static IHostBuilder CreateHostBuilder(string[] args) =>
             Host.CreateDefaultBuilder(args)
+                .UseDefaultServiceProvider(options =>
+                {
+                    options.ValidateOnBuild = true;
+
+                    // This needed is error with scoped services occurs
+                    options.ValidateScopes = false;
+                })
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
                     webBuilder.UseStartup<Startup>();

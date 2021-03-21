@@ -4,8 +4,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using FluentValidation;
-using FluentValidation.Internal;
 using FluentValidation.Validators;
 using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
@@ -40,21 +40,20 @@ namespace MicroElements.Swashbuckle.FluentValidation
                 var validationRules = validator.GetValidationRulesForMemberIgnoreCase(schemaPropertyName).ToArrayDebug();
                 foreach (var ruleContext in validationRules)
                 {
-                    var propertyValidators = ruleContext.PropertyRule.Validators;
-                    foreach (var propertyValidator in propertyValidators)
+                    foreach (var ruleComponent in ruleContext.PropertyRule.Components)
                     {
                         foreach (var rule in rules)
                         {
-                            if (rule.IsMatches(propertyValidator))
+                            if (rule.IsMatches(ruleComponent))
                             {
                                 try
                                 {
-                                    var ruleHistoryItem = new RuleHistoryCache.RuleHistoryItem(schemaTypeName, schemaPropertyName, propertyValidator, rule.Name);
+                                    var ruleHistoryItem = new RuleHistoryCache.RuleHistoryItem(schemaTypeName, schemaPropertyName, ruleComponent.Validator, rule.Name);
                                     if (!schema.ContainsRuleHistoryItem(ruleHistoryItem))
                                     {
                                         lazyLog.LogOnce();
 
-                                        rule.Apply(new RuleContext(schema, schemaPropertyName, propertyValidator, schemaFilterContext, isCollectionValidator: ruleContext.IsCollectionRule));
+                                        rule.Apply(new RuleContext(schema, schemaPropertyName, ruleComponent.Validator, schemaFilterContext, isCollectionValidator: ruleContext.IsCollectionRule));
 
                                         logger.LogDebug($"Rule '{rule.Name}' applied for property '{schemaTypeName}.{schemaPropertyName}'.");
                                         schema.AddRuleHistoryItem(ruleHistoryItem);
@@ -85,15 +84,14 @@ namespace MicroElements.Swashbuckle.FluentValidation
             // Note: IValidatorDescriptor doesn't return IncludeRules so we need to get validators manually.
             var validationRules = (validator as IEnumerable<IValidationRule>)
                 .NotNull()
-                .OfType<PropertyRule>()
                 .Where(includeRule => includeRule.HasNoCondition())
                 .ToArray();
 
             var propertiesWithChildAdapters = validationRules
-                .Select(rule => (rule, rule.Validators.OfType<IChildValidatorAdaptor>().ToArray()))
+                .Select(rule => (rule, rule.Components.Select(component => component.Validator).OfType<IChildValidatorAdaptor>().ToArray()))
                 .ToArrayDebug();
 
-            foreach ((PropertyRule propertyRule, IChildValidatorAdaptor[] childAdapters) in propertiesWithChildAdapters)
+            foreach ((IValidationRule propertyRule, IChildValidatorAdaptor[] childAdapters) in propertiesWithChildAdapters)
             {
                 foreach (var childAdapter in childAdapters)
                 {
@@ -153,17 +151,22 @@ namespace MicroElements.Swashbuckle.FluentValidation
 
         internal static IValidator? GetValidatorFromChildValidatorAdapter(this IChildValidatorAdaptor childValidatorAdapter)
         {
-            // Fake context. We have not got real context because no validation yet.
-            var fakeContext = new PropertyValidatorContext(new ValidationContext<object>(null), null, string.Empty);
-
-            // Try to validator with reflection.
             var childValidatorAdapterType = childValidatorAdapter.GetType();
-            var getValidatorMethod = childValidatorAdapterType.GetMethod(nameof(ChildValidatorAdaptor<object, object>.GetValidator));
-            if (getValidatorMethod != null)
-            {
-                var validator = (IValidator)getValidatorMethod.Invoke(childValidatorAdapter, new[] {fakeContext});
-                return validator;
-            }
+            var validatorField = childValidatorAdapterType.GetField("_validator", BindingFlags.Instance | BindingFlags.NonPublic);
+            var validator = (IValidator)validatorField.GetValue(childValidatorAdapter);
+            return validator;
+
+            //// Fake context. We have not got real context because no validation yet.
+            //var fakeContext = new PropertyValidatorContext(new ValidationContext<object>(null), null, string.Empty);
+
+            //// Try to validator with reflection.
+            //var childValidatorAdapterType = childValidatorAdapter.GetType();
+            //var getValidatorMethod = childValidatorAdapterType.GetMethod(nameof(ChildValidatorAdaptor<object, object>.GetValidator));
+            //if (getValidatorMethod != null)
+            //{
+            //    var validator = (IValidator)getValidatorMethod.Invoke(childValidatorAdapter, new[] {fakeContext});
+            //    return validator;
+            //}
 
             return null;
         }

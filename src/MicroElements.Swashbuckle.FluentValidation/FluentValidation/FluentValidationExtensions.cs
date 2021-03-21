@@ -22,7 +22,7 @@ namespace MicroElements.Swashbuckle.FluentValidation
             /// <summary>
             /// PropertyRule.
             /// </summary>
-            public readonly PropertyRule PropertyRule;
+            public readonly IValidationRule PropertyRule;
 
             /// <summary>
             /// Flag indication whether the <see cref="PropertyRule"/> is the CollectionRule.
@@ -34,7 +34,7 @@ namespace MicroElements.Swashbuckle.FluentValidation
             /// </summary>
             /// <param name="propertyRule">PropertyRule.</param>
             /// <param name="isCollectionRule">Is a CollectionPropertyRule.</param>
-            public ValidationRuleContext(PropertyRule propertyRule, bool isCollectionRule)
+            public ValidationRuleContext(IValidationRule propertyRule, bool isCollectionRule)
             {
                 PropertyRule = propertyRule;
                 IsCollectionRule = isCollectionRule;
@@ -52,7 +52,7 @@ namespace MicroElements.Swashbuckle.FluentValidation
             return (validator as IEnumerable<IValidationRule>)
                 .NotNull()
                 .GetPropertyRules()
-                .Where(propertyRule => HasNoCondition((PropertyRule) propertyRule.PropertyRule) && StringExtensions.EqualsIgnoreAll(propertyRule.PropertyRule.PropertyName, name));
+                .Where(propertyRule => HasNoCondition((IValidationRule) propertyRule.PropertyRule) && StringExtensions.EqualsIgnoreAll(propertyRule.PropertyRule.PropertyName, name));
         }
 
         /// <summary>
@@ -64,7 +64,7 @@ namespace MicroElements.Swashbuckle.FluentValidation
         public static IEnumerable<IPropertyValidator> GetValidatorsForMemberIgnoreCase(this IValidator validator, string name)
         {
             return GetValidationRulesForMemberIgnoreCase(validator, name)
-                .SelectMany(propertyRule => propertyRule.PropertyRule.Validators);
+                .SelectMany(propertyRule => propertyRule.PropertyRule.Components.Select(component => component.Validator));
         }
 
         /// <summary>
@@ -76,7 +76,7 @@ namespace MicroElements.Swashbuckle.FluentValidation
         {
             foreach (var validationRule in validationRules)
             {
-                if (validationRule is PropertyRule propertyRule)
+                if (validationRule is IValidationRule propertyRule)
                 {
                     // CollectionPropertyRule<T, TElement> is also a PropertyRule.
                     var isCollectionRule = propertyRule.GetType().Name.StartsWith("CollectionPropertyRule");
@@ -86,19 +86,21 @@ namespace MicroElements.Swashbuckle.FluentValidation
         }
 
         /// <summary>
-        /// Returns a <see cref="bool"/> indicating if the <paramref name="propertyValidator"/> is conditional.
+        /// Returns a <see cref="bool"/> indicating if the <paramref name="ruleComponent"/> is conditional.
         /// </summary>
-        internal static bool HasNoCondition(this IPropertyValidator propertyValidator)
+        internal static bool HasNoCondition(this IRuleComponent ruleComponent)
         {
-            return propertyValidator?.Options?.Condition == null && propertyValidator?.Options?.AsyncCondition == null;
+            var hasCondition = ruleComponent.HasCondition || ruleComponent.HasAsyncCondition;
+            return !hasCondition;
         }
 
         /// <summary>
         /// Returns a <see cref="bool"/> indicating if the <paramref name="propertyRule"/> is conditional.
         /// </summary>
-        internal static bool HasNoCondition(this PropertyRule propertyRule)
+        internal static bool HasNoCondition(this IValidationRule propertyRule)
         {
-            return propertyRule?.Condition == null && propertyRule?.AsyncCondition == null;
+            var hasCondition = propertyRule.HasCondition || propertyRule.HasAsyncCondition;
+            return !hasCondition;
         }
     }
 }
