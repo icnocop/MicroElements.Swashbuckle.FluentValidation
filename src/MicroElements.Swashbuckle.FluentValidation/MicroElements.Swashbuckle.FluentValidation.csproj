@@ -8,7 +8,7 @@
     <LangVersion>8.0</LangVersion>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <OpenApiGenerateDocuments>false</OpenApiGenerateDocuments>
-    <Description>Swagger ISchemaFilter that uses FluentValidation validators instead System.ComponentModel based attributes.</Description>
+    <Description>Swagger ISchemaFilter that uses FluentValidation validators instead of System.ComponentModel based attributes.</Description>
     <PackageTags>swagger swashbuckle FluentValidation aspnetcore</PackageTags>
   </PropertyGroup>
 
